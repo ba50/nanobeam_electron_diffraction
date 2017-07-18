@@ -2,10 +2,10 @@
 # stworzyc klase tag_group, tag itp.
 
 # sizes of different datatypes in bytes
-type_size = {'char': 1, 'bool': 1, 'i8': 1, 'i16': 2, 'i32': 4, 'float': 4, 'double': 8}
+type_size = { 'char': 1, 'bool': 1, 'i8': 1, 'i16': 2, 'i32': 4, 'float': 4, 'double': 8 }
 
 # format strings for different datatypes to be used inside the struct.unpack() function
-type_format = {'char': 'c', 'uchar': 'B', 'bool': '?', 'i16': 'h', 'ui16': 'H', 'i32': 'i', 'ui32': 'I', 'float': 'f', 'double': 'd' }
+type_format = { 'char': 'c', 'uchar': 'B', 'bool': '?', 'i16': 'h', 'ui16': 'H', 'i32': 'i', 'ui32': 'I', 'float': 'f', 'double': 'd' }
 
 #-----------------------------------------------------------------------------------
 
@@ -55,10 +55,11 @@ def ReadDm3File(dm3_fpath):
 
   import sys
   import struct
+  import numpy as np
 
-  # sys.stdout = open(dm3_fpath.replace('.dm3', '_log.txt'), 'w')
+  #sys.stdout = open(dm3_fpath.replace('.dm3', '_log.txt'), 'w')
   dm3_file = open(dm3_fpath, 'rb')
-  # print('Reading DM3 File...')
+  #print('Reading DM3 File...')
 
   header_size = 3 * type_size['i32']
   header = dm3_file.read(header_size)
@@ -75,22 +76,25 @@ def ReadDm3File(dm3_fpath):
   dm3_items['file_size'] = header_list[1]
   dm3_items['byte_order'] = header_list[0]
 
-  # print('DM version: ' + str(dm3_items['dm_version']) + '\n' \
-  #      'File size: ' + str(dm3_items['file_size']) + ' bytes')
+  #print('DM version: ' + str(dm3_items['dm_version']) + '\n' \
+        #'File size: ' + str(dm3_items['file_size']) + ' bytes')
 
+  image_dims = []
   image_data = []
 
-  main_tag_group_size = dm3_items['file_size'] - header_size
-  ReadTagGroup(dm3_file, image_data)
-  #SaveDm3AsPng(image_data, dm3_fpath)
-  # print('\nAll done')
+  #main_tag_group_size = dm3_items['file_size'] - header_size
+  ReadTagGroup(dm3_file, image_dims, image_data)
+  #SaveDm3AsPng(image_data, image_dims, dm3_fpath)
+  #print('\nAll done')
   #sys.stdout = sys.__stdout__
 
-  return image_data
+  image1d = np.asarray(image_data)
+  image2d = np.reshape(image1d, tuple(image_dims))
+  return image2d
 
 #-----------------------------------------------------------------------------------
 
-def ReadTagGroup(dm3_file, image_data):
+def ReadTagGroup(dm3_file, image_dims, image_data):
   '''Reads group of dm3 tags.
   For every single tag in a group it calls ReadTag() function.
   Keyword arguments:
@@ -103,8 +107,8 @@ def ReadTagGroup(dm3_file, image_data):
   import struct
 
   #print('\n----------------------------------------\n' + \
-  #      'Tag Group' + \
-  #      '\n----------------------------------------')
+        #'Tag Group' + \
+        #'\n----------------------------------------')
 
   tgroup_header_size = 2 * type_size['bool'] + type_size['i32']
   tgroup_header = dm3_file.read(tgroup_header_size)
@@ -117,11 +121,11 @@ def ReadTagGroup(dm3_file, image_data):
   tgroup_items['is_sorted'] = struct.unpack('?', tgroup_header[5:6])[0]
 
   for tag_idx in range(0, tgroup_items['n_tags']):    # moze byc tez range(tgroup_items['n_tags'])
-    ReadTag(dm3_file, image_data)
+    ReadTag(dm3_file, image_dims, image_data)
 
 #-----------------------------------------------------------------------------------
 
-def ReadTag(dm3_file, image_data):
+def ReadTag(dm3_file, image_dims, image_data):
   '''Reads single tag.
   If a tag turns out to be a tag group it calls ReadTagGroup() function.
   If a tag is a single tag then it calls ReadTagType() function.
@@ -154,14 +158,20 @@ def ReadTag(dm3_file, image_data):
   if tag_items['label'] == 'Data':
     has_data = True
 
+  # ---------
+  has_dims = False
+  if tag_items['label'] == 'RestoreImageDisplayBounds':
+    has_dims = True
+  # ---------
+
   if tag_items['is_group']:
-    ReadTagGroup(dm3_file, image_data)
+    ReadTagGroup(dm3_file, image_dims, image_data)
   else:
-    ReadTagType(dm3_file, has_data, image_data)
+    ReadTagType(dm3_file, has_dims, has_data, image_dims, image_data)
 
 #-----------------------------------------------------------------------------------
 
-def ReadTagType(dm3_file, has_data, image_data):
+def ReadTagType(dm3_file, has_dims, has_data, image_dims, image_data):
   '''Reads information about data structure and datatypes of individual values.
   Keyword arguments:
   dm3_file (file) -- dm3 file object
@@ -217,11 +227,11 @@ def ReadTagType(dm3_file, has_data, image_data):
       data_size = GetTypeSize(ttype_items['info_array'][0])
 
   n_elements = data_size / GetTypeSize(type_id)
-  ReadTagData(dm3_file, n_elements, type_id, has_data, image_data)
+  ReadTagData(dm3_file, n_elements, type_id, has_dims, has_data, image_dims, image_data)
 
 #-----------------------------------------------------------------------------------
 
-def ReadTagData(dm3_file, n_elements, type_id, has_data, image_data):
+def ReadTagData(dm3_file, n_elements, type_id, has_dims, has_data, image_dims, image_data):
   '''Reads data based on the information about datatypes and number of elements.
   Keyword arguments:
   dm3_file (file) -- dm3 file object
@@ -261,13 +271,17 @@ def ReadTagData(dm3_file, n_elements, type_id, has_data, image_data):
 
   data = struct.unpack(data_format, dm3_file.read(n_elements * type_size))
 
+
   if has_data:
-    del image_data[:]
+    image_data.clear()
     image_data.extend(data)
+
+  if has_dims:
+    image_dims.extend([ int(dim) for dim in data[2:] ])
 
 #------------------------------------------------------------------------------------
 
-def SaveDm3AsPng(image_data, dm3_fname):
+def SaveDm3AsPng(image_data, image_dims, dm3_fname):
   '''Saves image data as png file.
   Image data is a matrix of integer values. Each value corresponds to a single greyscale pixel.
   Keyword arguments:
@@ -280,7 +294,7 @@ def SaveDm3AsPng(image_data, dm3_fname):
   from PIL import Image as im
 
   image1d = np.asarray(image_data)
-  image2d = np.reshape(image1d, (668, 672))
+  image2d = np.reshape(image1d, tuple(image_dims))
 
   image2d_rescaled = ((image2d - image2d.min()) * 255.0 / image2d.max()).astype(np.uint8)
 
@@ -288,3 +302,7 @@ def SaveDm3AsPng(image_data, dm3_fname):
   image.save(dm3_fname.replace('.dm3', '.png'))
 
 #------------------------------------------------------------------------------------
+
+# Run this block of code if a module is run as a standalone program
+if __name__ == '__main__':
+  ReadDm3File('img1.dm3')
