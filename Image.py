@@ -4,18 +4,19 @@ import os.path as path
 
 
 class Image:
-    def __init__(self, file_name, array, log=False):
+    def __init__(self, file_name, array):
         self.name = path.basename(file_name)
-        self.array = array
+        self.array = np.copy(array)
 
-        if log:
-            self.array = np.log(self.array)
+    def log(self, clip_min=1e3, clip_max=1e4):
+        return np.log(np.clip(self.array, clip_min, clip_max))
 
     def plot(self):
         io.imshow(self.array)
         io.show()
 
     def move_center(self, dx, dy):
+
         if dx > 0:
             self.array = self.array[:, dx:self.array.shape[0]]
             self.array = np.c_[self.array, np.zeros((self.array.shape[0], dx))]

@@ -1,28 +1,20 @@
+import cv2
 import numpy as np
-from scipy import signal
-from scipy import misc
-import matplotlib.pyplot as plt
 
-face = misc.face(gray=True) - misc.face(gray=True).mean()
-template = np.copy(face[300:365, 670:750])  # right eye
-template -= template.mean()
-face = face + np.random.randn(*face.shape) * 50  # add noise
-corr = signal.correlate2d(face, template, boundary='symm', mode='same')
-y, x = np.unravel_index(np.argmax(corr), corr.shape)  # find the match
+img = cv2.imread('opencv_logo.png',0)
+img = cv2.medianBlur(img,5)
+cimg = cv2.cvtColor(img,cv2.COLOR_GRAY2BGR)
 
-"""
-fig, (ax_orig, ax_template, ax_corr) = plt.subplots(3, 1,
-                                                    figsize=(6, 15))
-ax_orig.imshow(face, cmap='gray')
-ax_orig.set_title('Original')
-ax_orig.set_axis_off()
-ax_template.imshow(template, cmap='gray')
-ax_template.set_title('Template')
-ax_template.set_axis_off()
-ax_corr.imshow(corr, cmap='gray')
-ax_corr.set_title('Cross-correlation')
-ax_corr.set_axis_off()
-ax_orig.plot(x, y, 'ro')
-"""
-plt.imshow(corr)
-plt.show()
+circles = cv2.HoughCircles(img,cv2.HOUGH_GRADIENT,1,20,
+                            param1=50,param2=30,minRadius=0,maxRadius=0)
+
+circles = np.uint16(np.around(circles))
+for i in circles[0,:]:
+    # draw the outer circle
+    cv2.circle(cimg,(i[0],i[1]),i[2],(0,255,0),2)
+    # draw the center of the circle
+    cv2.circle(cimg,(i[0],i[1]),2,(0,0,255),3)
+
+cv2.imshow('detected circles',cimg)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
