@@ -1,35 +1,41 @@
-import numpy as np
-from scipy import signal
-from skimage import filters
 import os
 import glob
 
-from Plot import Plot
+from scipy import signal
+
 import Dm3Reader3_1
-from Image import Image
+from BraggImage import BraggImage
+from Centering import Centering
+from Plot import Plot
 
-files = glob.glob(os.path.join('D:', 'Bartek_dane', 'rudzinski', '*.dm3'))
+import numpy as np
+from skimage.transform import hough_circle, hough_circle_peaks
 
-original = [Image(file, Dm3Reader3_1.ReadDm3File(file)) for file in files[34:100]]
-original_log = [Image(image.name, image.log()) for image in original]
-max_disk = [Image(image.name, image.array[119:151, 119:159]) for image in original_log]
-soble = [Image(image.name, filters.sobel(image.array)) for image in max_disk]
-cross =\
-    [Image(template.name, signal.correlate2d(soble[0].array, template.array, mode='same')) for template in soble]
+path = os.path.join('D:', 'Bartek_dane', 'rudzinski')
+files = glob.glob(os.path.join(path, '*.dm3'))
 
-to_center = []
-i_0, j_0 = np.unravel_index(cross[0].array.argmax(), cross[0].array.shape)
-for index, data in enumerate(cross):
-    i_cross, j_cross = np.unravel_index(data.array.argmax(), data.array.shape)
-    cross[index].array[i_cross, j_cross] = -1
-    i, j = (i_0-i_cross)+i_0, (j_0-j_cross)+j_0
-    max_disk[index].array[i, j] = -1
-    original[index].array[119+i, 119+j] = -1
-    to_center.append((i-i_0, j-j_0))
+print("Loading data... ", end='')
+original = [BraggImage(file, Dm3Reader3_1.ReadDm3File(file)) for file in files[:50]]
+print("Ok")
 
-Plot(original)
-for index, data in enumerate(to_center):
-    print(data[0], data[1])
-    original[index].move_center(data[1], -data[0])
+template = BraggImage(original[34].name, original[34].array[119:151, 119:159])
+center = Centering.move(original, template, 119, 151, 119, 159)
 
-Plot(original)
+center_log = [image.log() for image in center]
+soble = [image.soble() for image in center_log]
+
+print("Cross... ", end='')
+cross = [BraggImage(image.name, signal.correlate2d(image.array, soble[0].array, mode='same')) for image in soble[:7]]
+print("Ok")
+
+# Detect two radii
+hough_radii = np.arange(2, 10, .5)
+hough_res = [hough_circle(image.array, hough_radii) for image in cross]
+
+for index, i in enumerate(hough_res):
+    accums, cx, cy, radii = hough_circle_peaks(i, hough_radii, total_num_peaks=25)
+
+    for center_y, center_x, radius in zip(cy, cx, radii):
+         center_log[index].disks.append((center_x, center_y, radius))
+
+Plot(center_log)

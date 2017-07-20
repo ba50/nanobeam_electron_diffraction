@@ -1,20 +1,32 @@
-import cv2
 import numpy as np
+import matplotlib.pyplot as plt
 
-img = cv2.imread('opencv_logo.png',0)
-img = cv2.medianBlur(img,5)
-cimg = cv2.cvtColor(img,cv2.COLOR_GRAY2BGR)
+from skimage import data, color
+from skimage.transform import hough_circle, hough_circle_peaks
+from skimage.feature import canny
+from skimage.draw import circle_perimeter
+from skimage.util import img_as_ubyte
 
-circles = cv2.HoughCircles(img,cv2.HOUGH_GRADIENT,1,20,
-                            param1=50,param2=30,minRadius=0,maxRadius=0)
 
-circles = np.uint16(np.around(circles))
-for i in circles[0,:]:
-    # draw the outer circle
-    cv2.circle(cimg,(i[0],i[1]),i[2],(0,255,0),2)
-    # draw the center of the circle
-    cv2.circle(cimg,(i[0],i[1]),2,(0,0,255),3)
+# Load picture and detect edges
+image = img_as_ubyte(data.coins()[160:230, 70:270])
+edges = canny(image, sigma=3, low_threshold=10, high_threshold=50)
 
-cv2.imshow('detected circles',cimg)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+
+# Detect two radii
+hough_radii = np.arange(20, 35, 2)
+hough_res = hough_circle(edges, hough_radii)
+
+# Select the most prominent 5 circles
+accums, cx, cy, radii = hough_circle_peaks(hough_res, hough_radii,
+                                           total_num_peaks=3)
+
+# Draw them
+fig, ax = plt.subplots(ncols=1, nrows=1, figsize=(10, 4))
+image = color.gray2rgb(image)
+for center_y, center_x, radius in zip(cy, cx, radii):
+    circy, circx = circle_perimeter(center_y, center_x, radius)
+    image[circy, circx] = (220, 20, 20)
+
+ax.imshow(image, cmap=plt.cm.gray)
+plt.show()
