@@ -36,6 +36,8 @@ for index, i in enumerate(hough_res):
     accums, cx, cy, radii = hough_circle_peaks(i, hough_radii, total_num_peaks=25)
 
     for center_y, center_x, radius in zip(cy, cx, radii):
+         cross[index].disks.append((center_x, center_y, radius))
          center_log[index].disks.append((center_x, center_y, radius))
 
+Plot(cross)
 Plot(center_log)
