@@ -1,3 +1,4 @@
+import sys
 import os
 import glob
 
@@ -11,11 +12,22 @@ from Plot import Plot
 import numpy as np
 from skimage.transform import hough_circle, hough_circle_peaks
 
+from PyQt5 import QtWidgets
+from Gui import Gui
+
+
+if __name__ == '__main__':
+    app = QtWidgets.QApplication(sys.argv)
+    form = Gui()
+    form.show()
+    app.exec_()
+
+"""
 path = os.path.join('D:', 'Bartek_dane', 'rudzinski')
 files = glob.glob(os.path.join(path, '*.dm3'))
 
 print("Loading data... ", end='')
-original = [BraggImage(file, Dm3Reader3_1.ReadDm3File(file)) for file in files[:50]]
+original = [BraggImage(file, Dm3Reader3_1.ReadDm3File(file)) for file in files[:1]]
 print("Ok")
 
 template = BraggImage(original[34].name, original[34].array[119:151, 119:159])
@@ -41,3 +53,4 @@ for index, i in enumerate(hough_res):
 
 Plot(cross)
 Plot(center_log)
+"""
