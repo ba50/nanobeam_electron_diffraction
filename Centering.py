@@ -9,13 +9,14 @@ from BraggImage import BraggImage
 
 class Centering:
     @staticmethod
-    def move(images_in, template, min_x, max_x, min_y, max_y):
+    def move(images_in, template, template_range):
         images = copy.deepcopy(images_in)
         images_log = [image.log() for image in images_in]
         template = template.log()
 
-        max_disk_soble =\
-            [BraggImage(image.name, filters.sobel(image.array[min_x:max_x, min_y:max_y]))
+        max_disk_soble = \
+            [BraggImage(image.name, filters.sobel(image.array[template_range[0]:template_range[1],
+                                                  template_range[2]:template_range[3]]))
              for image in images_log]
 
         cross =\
