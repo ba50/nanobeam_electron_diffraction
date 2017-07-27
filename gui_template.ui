@@ -40,13 +40,27 @@
      <number>0</number>
     </property>
     <item>
-     <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,0,0">
+     <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,0,0,0">
       <property name="spacing">
        <number>0</number>
       </property>
       <property name="sizeConstraint">
        <enum>QLayout::SetDefaultConstraint</enum>
       </property>
+      <item>
+       <widget class="QComboBox" name="image_series">
+        <item>
+         <property name="text">
+          <string>Original</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Centred</string>
+         </property>
+        </item>
+       </widget>
+      </item>
       <item>
        <widget class="QTextBrowser" name="curr_image_name">
         <property name="maximumSize">
@@ -122,8 +136,16 @@
     <addaction name="actionLoad_template"/>
     <addaction name="actionCenter_series"/>
    </widget>
+   <widget class="QMenu" name="menuFilters">
+    <property name="title">
+     <string>Filters</string>
+    </property>
+    <addaction name="actionSobel"/>
+    <addaction name="actionCanny"/>
+   </widget>
    <addaction name="menuFile"/>
    <addaction name="menuTools"/>
+   <addaction name="menuFilters"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionOpen">
@@ -139,6 +161,16 @@
   <action name="actionCenter_series">
    <property name="text">
     <string>Center series</string>
+   </property>
+  </action>
+  <action name="actionSobel">
+   <property name="text">
+    <string>Sobel</string>
+   </property>
+  </action>
+  <action name="actionCanny">
+   <property name="text">
+    <string>Canny</string>
    </property>
   </action>
  </widget>

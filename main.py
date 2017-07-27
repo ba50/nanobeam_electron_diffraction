@@ -16,7 +16,6 @@ from PyQt5 import QtWidgets
 from Gui import Gui
 from Core import Core
 
-
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
     core = Core()
@@ -29,14 +28,16 @@ path = os.path.join('D:', 'Bartek_dane', 'rudzinski')
 files = glob.glob(os.path.join(path, '*.dm3'))
 
 print("Loading data... ", end='')
-original = [BraggImage(file, Dm3Reader3_1.ReadDm3File(file)) for file in files[:1]]
+original = [BraggImage(file, Dm3Reader3_1.ReadDm3File(file)) for file in files[:50]]
 print("Ok")
 
 template = BraggImage(original[34].name, original[34].array[119:151, 119:159])
-center = Centering.move(original, template, 119, 151, 119, 159)
+center = Centering.move(original, template, (119, 151, 119, 159))
 
 center_log = [image.log() for image in center]
 soble = [image.soble() for image in center_log]
+
+Plot(soble)
 
 print("Cross... ", end='')
 cross = [BraggImage(image.name, signal.correlate2d(image.array, soble[0].array, mode='same')) for image in soble[:7]]
@@ -45,14 +46,12 @@ print("Ok")
 # Detect two radii
 hough_radii = np.arange(2, 10, .5)
 hough_res = [hough_circle(image.array, hough_radii) for image in cross]
-
 for index, i in enumerate(hough_res):
     accums, cx, cy, radii = hough_circle_peaks(i, hough_radii, total_num_peaks=25)
 
     for center_y, center_x, radius in zip(cy, cx, radii):
          cross[index].disks.append((center_x, center_y, radius))
          center_log[index].disks.append((center_x, center_y, radius))
-
 Plot(cross)
 Plot(center_log)
 """

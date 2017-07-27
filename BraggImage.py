@@ -3,7 +3,7 @@ import os.path as path
 
 import numpy as np
 import matplotlib.pyplot as plt
-from skimage import filters
+from skimage import filters, feature
 from scipy import misc
 
 
@@ -21,6 +21,11 @@ class BraggImage:
     def soble(self):
         temp = copy.deepcopy(self)
         temp.array = filters.sobel(self.array)
+        return temp
+
+    def canny(self):
+        temp = copy.deepcopy(self)
+        temp.array = feature.canny(self.array, sigma=1e-2, low_threshold=0, high_threshold=1e4)
         return temp
 
     def move(self, dx, dy):

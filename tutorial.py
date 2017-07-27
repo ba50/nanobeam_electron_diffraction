@@ -1,65 +1,18 @@
-import random, sys
-from PyQt5.QtCore import QPoint, QRect, QSize, Qt
-from PyQt5.QtGui import *
-from PyQt5.QtWidgets import *
+import cv2
+import numpy as np
 
+img = cv2.imread('test.png', 0)
+cimg = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
 
-class Window(QLabel):
-    def __init__(self, parent=None):
+circles = cv2.HoughCircles(img, cv2.HOUGH_GRADIENT, 1, 20, param1=1, param2=1, minRadius=6, maxRadius=8)
 
-        QLabel.__init__(self, parent)
-        self.rubberBand = QRubberBand(QRubberBand.Rectangle, self)
-        self.origin = QPoint()
+circles = np.uint16(np.around(circles))
+for i in circles[0, :]:
+    # draw the outer circle
+    cv2.circle(cimg, (i[0], i[1]), i[2], (0, 255, 0), 1)
+    # draw the center of the circle
+    cv2.circle(cimg, (i[0], i[1]), 1, (0, 0, 255), 1)
 
-    def mousePressEvent(self, event):
-
-        if event.button() == Qt.LeftButton:
-            self.origin = QPoint(event.pos())
-            self.rubberBand.setGeometry(QRect(self.origin, QSize()))
-            self.rubberBand.show()
-
-    def mouseMoveEvent(self, event):
-
-        if not self.origin.isNull():
-            self.rubberBand.setGeometry(QRect(self.origin, event.pos()).normalized())
-
-    def mouseReleaseEvent(self, event):
-
-        if event.button() == Qt.LeftButton:
-            self.rubberBand.hide()
-
-
-def create_pixmap():
-    def color():
-        r = random.randrange(0, 255)
-        g = random.randrange(0, 255)
-        b = random.randrange(0, 255)
-        return QColor(r, g, b)
-
-    def point():
-        return QPoint(random.randrange(0, 400), random.randrange(0, 300))
-
-    pixmap = QPixmap(400, 300)
-    pixmap.fill(color())
-    painter = QPainter()
-    painter.begin(pixmap)
-    i = 0
-    while i < 1000:
-        painter.setBrush(color())
-        painter.drawPolygon(QPolygon([point(), point(), point()]))
-        i += 1
-
-    painter.end()
-    return pixmap
-
-
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    random.seed()
-
-    window = Window()
-    window.setPixmap(create_pixmap())
-    window.resize(400, 300)
-    window.show()
-
-    sys.exit(app.exec_())
+cv2.imshow('detected circles', cimg)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
