@@ -135,13 +135,17 @@
     </property>
     <addaction name="actionLoad_template"/>
     <addaction name="actionCenter_series"/>
+    <addaction name="actionTesting"/>
    </widget>
    <widget class="QMenu" name="menuFilters">
     <property name="title">
      <string>Filters</string>
     </property>
+    <addaction name="actionLog"/>
     <addaction name="actionSobel"/>
     <addaction name="actionCanny"/>
+    <addaction name="actionWiener"/>
+    <addaction name="actionTesting_2"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuTools"/>
@@ -171,6 +175,26 @@
   <action name="actionCanny">
    <property name="text">
     <string>Canny</string>
+   </property>
+  </action>
+  <action name="actionTesting">
+   <property name="text">
+    <string>Testing</string>
+   </property>
+  </action>
+  <action name="actionLog">
+   <property name="text">
+    <string>Log</string>
+   </property>
+  </action>
+  <action name="actionWiener">
+   <property name="text">
+    <string>Wiener</string>
+   </property>
+  </action>
+  <action name="actionTesting_2">
+   <property name="text">
+    <string>Testing</string>
    </property>
   </action>
  </widget>

@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from skimage import filters, feature
 from scipy import misc
+from scipy import signal
 
 
 class BraggImage:
@@ -13,20 +14,17 @@ class BraggImage:
         self.array = np.copy(array)
         self.disks = []
 
-    def log(self, clip_min=1e3, clip_max=1e4):
-        temp = copy.deepcopy(self)
-        temp.array = np.log(np.clip(temp.array, clip_min, clip_max))
-        return temp
+    def log(self, clip_min=1e0, clip_max=1e14):
+        self.array = np.log(np.clip(self.array, clip_min, clip_max))
 
     def soble(self):
-        temp = copy.deepcopy(self)
-        temp.array = filters.sobel(self.array)
-        return temp
+        self.array = filters.sobel(self.array)
 
     def canny(self):
-        temp = copy.deepcopy(self)
-        temp.array = feature.canny(self.array, sigma=1e-2, low_threshold=0, high_threshold=1e4)
-        return temp
+        self.array = feature.canny(self.array, sigma=1e-2, low_threshold=0, high_threshold=1e4)
+
+    def wiener(self):
+        self.array = signal.wiener(self.array)
 
     def move(self, dx, dy):
         if dx > 0:
