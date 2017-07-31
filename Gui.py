@@ -1,3 +1,4 @@
+import os.path as path
 import numpy as np
 
 from PyQt5 import QtWidgets, QtCore, QtGui
@@ -5,12 +6,19 @@ import gui_template
 import pyqtgraph as pg
 from scipy import misc
 
+from BinReader import BinReader
 from BraggImage import BraggImage
 import Dm3Reader3_1
 from Centering import Centering
 
 import matplotlib.pyplot as plt
-from scipy.ndimage.filters  import gaussian_filter
+from scipy.ndimage.filters import gaussian_filter
+
+from skimage import data, color
+from skimage.transform import hough_circle, hough_circle_peaks
+from skimage.feature import canny
+from skimage.draw import circle_perimeter
+from skimage.util import img_as_ubyte
 
 
 class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
@@ -23,9 +31,9 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
         self.image_view = pg.ImageView()
 
         self.statusBar().showMessage("Loading files...")
-        files_path = ['dd020.dm3']
-        self.core.original = [BraggImage(file, Dm3Reader3_1.ReadDm3File(file)) for file in files_path]
-        self.statusBar().showMessage("Ok")
+        files_path = ['CCD Spectrum image_001.bin']
+        self.core.original = [BraggImage(file, BinReader.read_bin_file(file, (512, 512))) for file in files_path]
+        self.statusBar().showMessage("Ready")
 
         self.curr_series = self.core.original
 
@@ -49,6 +57,8 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
             self.actionLoad_template.triggered.connect(self.load_template)
             self.actionCenter_series.triggered.connect(self.center_series)
             self.actionTesting.triggered.connect(self.testing)
+            self.actionVirtual_image.triggered.connect(self.virtual_image)
+
             self.actionLog.triggered.connect(self.log_filter)
             self.actionSobel.triggered.connect(self.sobel_filter)
             self.actionCanny.triggered.connect(self.canny_filter)
@@ -60,12 +70,22 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
 
         self.image_series.activated[str].connect(self.change_series)
 
+        self.statusBar().showMessage("Ready")
+
     def browse_folder(self):
         files_path = QtWidgets.QFileDialog.getOpenFileNames(self, 'Select Folder')
 
         self.statusBar().showMessage("Loading files...")
-        self.core.original = [BraggImage(file, Dm3Reader3_1.ReadDm3File(file)) for file in files_path[0]]
-        self.statusBar().showMessage("Ok")
+
+        self.core.original = []
+        for file in files_path[0]:
+            if path.basename(file).split(sep='.')[1] == 'dm3':
+                self.core.original.append(BraggImage(file, Dm3Reader3_1.ReadDm3File(file)))
+            elif path.basename(file).split(sep='.')[1] == 'bin':
+                self.core.original.append(BraggImage(file, BinReader.read_bin_file(file, (512, 512))))
+            else:
+                self.statusBar().showMessage("Not supported file type.")
+        self.statusBar().showMessage("Read")
 
         self.curr_series = self.core.original
 
@@ -95,12 +115,46 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
         self.label_template.setPixmap(QtGui.QPixmap('template.png'))
 
     def center_series(self):
+        self.statusBar().showMessage("Centering...")
         self.core.center = Centering.move(self.core.original, self.core.template, self.core.template_range)
+        self.statusBar().showMessage("Ready")
+
+    def virtual_image(self):
+        self.core.virtual_image = []
+        for image in self.curr_series:
+            self.core.virtual_image.append(np.mean(image.array[self.core.template_range[0]:self.core.template_range[1],
+                                                   self.core.template_range[2]:self.core.template_range[3]]))
+        self.core.virtual_image = np.array(self.core.virtual_image)
+        self.core.virtual_image = self.core.virtual_image.reshape(20, 20)
+
+        plt.figure()
+        plt.imshow(self.core.virtual_image, cmap='gray')
+        plt.show()
 
     def testing(self):
-        plt.figure()
-        plt.plot(range(0, 256), self.curr_image.array[:, 128])
-        plt.show(block=False)
+        # Load picture and detect edges
+        image = self.curr_image.array
+        plt.imshow(image)
+        #image = img_as_ubyte(data.coins()[160:230, 70:270])
+        edges = canny(image, sigma=1, low_threshold=0, high_threshold=1e10)
+
+        # Detect two radii
+        hough_radii = np.arange(20, 35, 2)
+        hough_res = hough_circle(edges, hough_radii)
+
+        # Select the most prominent 5 circles
+        accums, cx, cy, radii = hough_circle_peaks(hough_res, hough_radii,
+                                                   total_num_peaks=3)
+
+        # Draw them
+        fig, ax = plt.subplots(ncols=1, nrows=1, figsize=(10, 4))
+        image = color.gray2rgb(image)
+        for center_y, center_x, radius in zip(cy, cx, radii):
+            circy, circx = circle_perimeter(center_y, center_x, radius)
+            image[circy, circx] = (220, 20, 20)
+
+        ax.imshow(image, cmap=plt.cm.gray)
+        plt.show()
 
     def change_series(self, text):
         if text == 'Original':

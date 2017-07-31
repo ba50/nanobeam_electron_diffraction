@@ -10,14 +10,12 @@ from BraggImage import BraggImage
 class Centering:
     @staticmethod
     def move(images_in, template, template_range):
-        images = copy.deepcopy(images_in)
-        images_log = [image.log() for image in images_in]
-        template = template.log()
+        images_out = copy.deepcopy(images_in)
 
         max_disk_soble = \
             [BraggImage(image.name, filters.sobel(image.array[template_range[0]:template_range[1],
                                                   template_range[2]:template_range[3]]))
-             for image in images_log]
+             for image in images_in]
 
         cross =\
             [BraggImage(face.name, signal.correlate2d(face.array, template.array, mode='same'))
@@ -28,9 +26,9 @@ class Centering:
 
         for index, data in enumerate(cross):
             i, j = np.unravel_index(data.array.argmax(), data.array.shape)
-            images[index].move(j-j_0, i_0-i)
+            images_out[index].move(j-j_0, i_0-i)
 
-        return images
+        return images_out
 
 
 

@@ -1,4 +1,3 @@
-import copy
 import os.path as path
 
 import numpy as np
@@ -14,7 +13,7 @@ class BraggImage:
         self.array = np.copy(array)
         self.disks = []
 
-    def log(self, clip_min=1e0, clip_max=1e14):
+    def log(self, clip_min=1, clip_max=1e14):
         self.array = np.log(np.clip(self.array, clip_min, clip_max))
 
     def soble(self):

@@ -88,9 +88,12 @@ class Ui_MainWindow(object):
         self.actionWiener.setObjectName("actionWiener")
         self.actionTesting_2 = QtWidgets.QAction(MainWindow)
         self.actionTesting_2.setObjectName("actionTesting_2")
+        self.actionVirtual_image = QtWidgets.QAction(MainWindow)
+        self.actionVirtual_image.setObjectName("actionVirtual_image")
         self.menuFile.addAction(self.actionOpen)
         self.menuTools.addAction(self.actionLoad_template)
         self.menuTools.addAction(self.actionCenter_series)
+        self.menuTools.addAction(self.actionVirtual_image)
         self.menuTools.addAction(self.actionTesting)
         self.menuFilters.addAction(self.actionLog)
         self.menuFilters.addAction(self.actionSobel)
@@ -123,4 +126,5 @@ class Ui_MainWindow(object):
         self.actionLog.setText(_translate("MainWindow", "Log"))
         self.actionWiener.setText(_translate("MainWindow", "Wiener"))
         self.actionTesting_2.setText(_translate("MainWindow", "Testing"))
+        self.actionVirtual_image.setText(_translate("MainWindow", "Virtual image"))
 

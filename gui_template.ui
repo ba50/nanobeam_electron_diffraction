@@ -135,6 +135,7 @@
     </property>
     <addaction name="actionLoad_template"/>
     <addaction name="actionCenter_series"/>
+    <addaction name="actionVirtual_image"/>
     <addaction name="actionTesting"/>
    </widget>
    <widget class="QMenu" name="menuFilters">
@@ -195,6 +196,11 @@
   <action name="actionTesting_2">
    <property name="text">
     <string>Testing</string>
+   </property>
+  </action>
+  <action name="actionVirtual_image">
+   <property name="text">
+    <string>Virtual image</string>
    </property>
   </action>
  </widget>
