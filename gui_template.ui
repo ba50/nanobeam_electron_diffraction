@@ -54,11 +54,6 @@
           <string>Original</string>
          </property>
         </item>
-        <item>
-         <property name="text">
-          <string>Centred</string>
-         </property>
-        </item>
        </widget>
       </item>
       <item>
@@ -66,7 +61,7 @@
         <property name="maximumSize">
          <size>
           <width>100</width>
-          <height>25</height>
+          <height>35</height>
          </size>
         </property>
        </widget>

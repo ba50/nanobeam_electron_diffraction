@@ -1,32 +1,29 @@
-import numpy as np
-import matplotlib.pyplot as plt
-
-from skimage import data, color
-from skimage.transform import hough_circle, hough_circle_peaks
-from skimage.feature import canny
-from skimage.draw import circle_perimeter
-from skimage.util import img_as_ubyte
+import sys
+from PyQt5.QtWidgets import *
+from PyQt5.QtGui import *
+from PyQt5.QtCore import *
 
 
-# Load picture and detect edges
-image = img_as_ubyte(data.coins()[160:230, 70:270])
-edges = canny(image, sigma=3, low_threshold=10, high_threshold=50)
+def window():
+    app = QApplication(sys.argv)
+    w = QWidget()
+    b = QPushButton(w)
+    b.setText("Hello World!")
+    b.move(50, 50)
+    b.clicked.connect(showdialog)
+    w.setWindowTitle("PyQt Dialog demo")
+    w.show()
+    sys.exit(app.exec_())
 
 
-# Detect two radii
-hough_radii = np.arange(20, 35, 2)
-hough_res = hough_circle(edges, hough_radii)
+def showdialog():
+    d = QDialog()
+    b1 = QPushButton("ok", d)
+    b1.move(50, 50)
+    d.setWindowTitle("Dialog")
+    d.setWindowModality(Qt.ApplicationModal)
+    d.exec_()
 
-# Select the most prominent 5 circles
-accums, cx, cy, radii = hough_circle_peaks(hough_res, hough_radii,
-                                           total_num_peaks=3)
 
-# Draw them
-fig, ax = plt.subplots(ncols=1, nrows=1, figsize=(10, 4))
-image = color.gray2rgb(image)
-for center_y, center_x, radius in zip(cy, cx, radii):
-    circy, circx = circle_perimeter(center_y, center_x, radius)
-    image[circy, circx] = (220, 20, 20)
-
-ax.imshow(image, cmap=plt.cm.gray)
-plt.show()
+if __name__ == '__main__':
+    window()

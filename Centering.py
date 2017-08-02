@@ -3,13 +3,20 @@ import copy
 from skimage import filters
 import numpy as np
 from scipy import signal
+import multiprocessing
 
 from BraggImage import BraggImage
 
 
 class Centering:
-    @staticmethod
-    def move(images_in, template, template_range):
+    def __init__(self):
+        self.template = None
+
+    def correlation2d(self, face):
+        return signal.correlate2d(face.array, self.template.array, mode='same')
+
+    def move(self, images_in, template, template_range):
+        self.template = template
         images_out = copy.deepcopy(images_in)
 
         max_disk_soble = \
@@ -17,19 +24,15 @@ class Centering:
                                                   template_range[2]:template_range[3]]))
              for image in images_in]
 
-        cross =\
-            [BraggImage(face.name, signal.correlate2d(face.array, template.array, mode='same'))
-             for face in max_disk_soble]
+        with multiprocessing.Pool(multiprocessing.cpu_count()-1) as p:
+            cross = p.map(self.correlation2d, max_disk_soble)
 
         cross_0 = signal.correlate2d(template.array, template.array, mode='same')
         i_0, j_0 = np.unravel_index(cross_0.argmax(), cross_0.shape)
 
         for index, data in enumerate(cross):
-            i, j = np.unravel_index(data.array.argmax(), data.array.shape)
+            i, j = np.unravel_index(data.argmax(), data.shape)
             images_out[index].move(j-j_0, i_0-i)
 
         return images_out
-
-
-
 

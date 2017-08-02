@@ -10,6 +10,7 @@ from BinReader import BinReader
 from BraggImage import BraggImage
 import Dm3Reader3_1
 from Centering import Centering
+from BinResolution import BinResolution
 
 import matplotlib.pyplot as plt
 from scipy.ndimage.filters import gaussian_filter
@@ -20,6 +21,12 @@ from skimage.feature import canny
 from skimage.draw import circle_perimeter
 from skimage.util import img_as_ubyte
 
+from PyQt5.QtWidgets import *
+from PyQt5.QtGui import *
+from PyQt5.QtCore import *
+
+import copy
+
 
 class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
     def __init__(self, core):
@@ -27,12 +34,14 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
         self.setupUi(self)
         self.core = core
         self.curr_series = None
+        self.bin_resolution = None
 
         self.image_view = pg.ImageView()
 
         self.statusBar().showMessage("Loading files...")
         files_path = ['CCD Spectrum image_001.bin']
-        self.core.original = [BraggImage(file, BinReader.read_bin_file(file, (512, 512))) for file in files_path]
+        self.core.original =\
+            [BraggImage(file, BinReader.read_bin_file(file, np.int32, 10, (512, 512))) for file in files_path]
         self.statusBar().showMessage("Ready")
 
         self.curr_series = self.core.original
@@ -62,6 +71,7 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
             self.actionLog.triggered.connect(self.log_filter)
             self.actionSobel.triggered.connect(self.sobel_filter)
             self.actionCanny.triggered.connect(self.canny_filter)
+
             self.actionWiener.triggered.connect(self.wiener_filter)
 
             self.actionTesting_2.triggered.connect(self.testing_2)
@@ -78,13 +88,24 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
         self.statusBar().showMessage("Loading files...")
 
         self.core.original = []
-        for file in files_path[0]:
-            if path.basename(file).split(sep='.')[1] == 'dm3':
+        if path.basename(files_path[0][0]).split(sep='.')[1] == 'dm3':
+            for file in files_path[0]:
                 self.core.original.append(BraggImage(file, Dm3Reader3_1.ReadDm3File(file)))
-            elif path.basename(file).split(sep='.')[1] == 'bin':
-                self.core.original.append(BraggImage(file, BinReader.read_bin_file(file, (512, 512))))
-            else:
-                self.statusBar().showMessage("Not supported file type.")
+        elif path.basename(files_path[0][0]).split(sep='.')[1] == 'bin':
+            self.bin_resolution = BinResolution()
+            for file in files_path[0]:
+                self.core.original.append(BraggImage(file,
+                                                     BinReader.read_bin_file(file,
+                                                                             self.bin_resolution.type,
+                                                                             self.bin_resolution.offset,
+                                                                             (self.bin_resolution.width,
+                                                                              self.bin_resolution.height)
+                                                                             )
+                                                     )
+                                          )
+        else:
+            self.statusBar().showMessage("Not supported file type.")
+
         self.statusBar().showMessage("Read")
 
         self.curr_series = self.core.original
@@ -115,9 +136,15 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
         self.label_template.setPixmap(QtGui.QPixmap('template.png'))
 
     def center_series(self):
+        _translate = QtCore.QCoreApplication.translate
         self.statusBar().showMessage("Centering...")
-        self.core.center = Centering.move(self.core.original, self.core.template, self.core.template_range)
-        self.statusBar().showMessage("Ready")
+        if self.core.template:
+            self.core.center = Centering().move(self.core.original, self.core.template, self.core.template_range)
+            self.statusBar().showMessage("Ready")
+            self.image_series.addItem("")
+            self.image_series.setItemText(len(self.image_series)-1, _translate("MainWindow", "Centred"))
+        else:
+            self.statusBar().showMessage("Empty template.")
 
     def virtual_image(self):
         self.core.virtual_image = []
@@ -158,21 +185,23 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
 
     def change_series(self, text):
         if text == 'Original':
-            if self.core.original:
-                self.curr_series = self.core.original
-                self.image_view.setImage(self.curr_series[self.curr_index].array)
-            else:
-                self.statusBar().showMessage("Original series is empty.")
+            self.curr_series = self.core.original
         elif text == 'Centred':
-            if self.core.center:
-                self.curr_series = self.core.center
-                self.image_view.setImage(self.curr_series[self.curr_index].array)
-            else:
-                self.statusBar().showMessage("Centred series is empty.")
+            self.curr_series = self.core.center
+        elif text == 'Log':
+            self.curr_series = self.core.log
+
+        self.curr_image = self.curr_series[self.curr_index]
+        self.image_view.setImage(self.curr_image.array)
 
     def log_filter(self):
-        self.curr_image.log(1e1, 1e14)
-        self.image_view.setImage(self.curr_image.array)
+        _translate = QtCore.QCoreApplication.translate
+        self.core.log = copy.deepcopy(self.curr_series)
+        for image in self.core.log:
+            image.log(1e1, 1e14)
+        self.image_view.setImage(self.core.log[0].array)
+        self.image_series.addItem("")
+        self.image_series.setItemText(len(self.image_series)-1, _translate("MainWindow", "Log"))
 
     def sobel_filter(self):
         self.curr_image.soble()
