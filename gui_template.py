@@ -90,7 +90,6 @@ class Ui_MainWindow(object):
         self.actionVirtual_image = QtWidgets.QAction(MainWindow)
         self.actionVirtual_image.setObjectName("actionVirtual_image")
         self.menuFile.addAction(self.actionOpen)
-        self.menuTools.addAction(self.actionLoad_template)
         self.menuTools.addAction(self.actionCenter_series)
         self.menuTools.addAction(self.actionVirtual_image)
         self.menuTools.addAction(self.actionTesting)

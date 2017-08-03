@@ -13,19 +13,16 @@ class Centering:
         self.template = None
 
     def correlation2d(self, face):
-        return signal.correlate2d(face.array, self.template.array, mode='same')
+        return signal.correlate2d(face, self.template.array, mode='same')
 
-    def move(self, images_in, template, template_range):
+    def move(self, images_in, template, image_view):
         self.template = template
         images_out = copy.deepcopy(images_in)
 
-        max_disk_soble = \
-            [BraggImage(image.name, filters.sobel(image.array[template_range[0]:template_range[1],
-                                                  template_range[2]:template_range[3]]))
-             for image in images_in]
+        faces = [image_view.roi.getArrayRegion(image.array, image_view.getImageItem()) for image in images_out]
 
         with multiprocessing.Pool(multiprocessing.cpu_count()-1) as p:
-            cross = p.map(self.correlation2d, max_disk_soble)
+            cross = p.map(self.correlation2d, faces)
 
         cross_0 = signal.correlate2d(template.array, template.array, mode='same')
         i_0, j_0 = np.unravel_index(cross_0.argmax(), cross_0.shape)

@@ -128,7 +128,6 @@
     <property name="title">
      <string>Tools</string>
     </property>
-    <addaction name="actionLoad_template"/>
     <addaction name="actionCenter_series"/>
     <addaction name="actionVirtual_image"/>
     <addaction name="actionTesting"/>

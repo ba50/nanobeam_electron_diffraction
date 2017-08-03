@@ -21,11 +21,11 @@ from skimage.feature import canny
 from skimage.draw import circle_perimeter
 from skimage.util import img_as_ubyte
 
-from PyQt5.QtWidgets import *
-from PyQt5.QtGui import *
-from PyQt5.QtCore import *
+from Plot import Plot
 
 import copy
+
+from threading import Thread
 
 
 class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
@@ -54,7 +54,7 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
 
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.update_)
-        self.timer.start(10)
+        self.timer.start(100)
 
         self.image_layout.addWidget(self.image_view)
 
@@ -63,10 +63,9 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
 
         self.actionOpen.triggered.connect(self.browse_folder)
         if self.curr_image:
-            self.actionLoad_template.triggered.connect(self.load_template)
             self.actionCenter_series.triggered.connect(self.center_series)
             self.actionTesting.triggered.connect(self.testing)
-            self.actionVirtual_image.triggered.connect(self.virtual_image)
+            self.actionVirtual_image.triggered.connect(self.virtual_image_start)
 
             self.actionLog.triggered.connect(self.log_filter)
             self.actionSobel.triggered.connect(self.sobel_filter)
@@ -79,6 +78,12 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
             self.statusBar().showMessage("No image.")
 
         self.image_series.activated[str].connect(self.change_series)
+
+        self.plot = None
+        self.virtual_image_on = False
+        self.core.virtual_image = np.zeros((20, 20))
+        self.thread = Thread(target=self.virtual_image)
+        self.thread.daemon = True
 
         self.statusBar().showMessage("Ready")
 
@@ -122,41 +127,44 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
         self.curr_image_name.setPlainText(self.curr_image.name)
 
     def load_template(self):
-        self.core.template_range = [np.ceil(self.image_view.roi.pos()[0]).astype("int"),
-                                    np.ceil(self.image_view.roi.pos()[0]+self.image_view.roi.size()[0]).astype("int"),
-                                    np.ceil(self.image_view.roi.pos()[1]).astype("int"),
-                                    np.ceil(self.image_view.roi.pos()[1]+self.image_view.roi.size()[1]).astype("int")]
+        image = self.image_view.roi.getArrayRegion(self.curr_image.array, self.image_view.getImageItem())
+        self.core.template = BraggImage(self.curr_image.name, image)
 
-        self.core.template = BraggImage(self.curr_image.name,
-                                        self.curr_image.array[
-                                        self.core.template_range[0]:self.core.template_range[1],
-                                        self.core.template_range[2]:self.core.template_range[3]])
+        image = misc.imresize(image, (100, 100))
+        image = np.flip(image, 0)
+        image = misc.imrotate(image, -90)
 
-        misc.imsave('template.png', misc.imresize(misc.toimage(self.core.template.array), (100, 100)))
+        misc.imsave('template.png', image)
         self.label_template.setPixmap(QtGui.QPixmap('template.png'))
 
     def center_series(self):
+        self.load_template()
         _translate = QtCore.QCoreApplication.translate
         self.statusBar().showMessage("Centering...")
         if self.core.template:
-            self.core.center = Centering().move(self.core.original, self.core.template, self.core.template_range)
+            self.core.center = Centering().move(self.core.original,
+                                                self.core.template,
+                                                self.image_view)
             self.statusBar().showMessage("Ready")
             self.image_series.addItem("")
             self.image_series.setItemText(len(self.image_series)-1, _translate("MainWindow", "Centred"))
         else:
             self.statusBar().showMessage("Empty template.")
 
-    def virtual_image(self):
-        self.core.virtual_image = []
-        for image in self.curr_series:
-            self.core.virtual_image.append(np.mean(image.array[self.core.template_range[0]:self.core.template_range[1],
-                                                   self.core.template_range[2]:self.core.template_range[3]]))
-        self.core.virtual_image = np.array(self.core.virtual_image)
-        self.core.virtual_image = self.core.virtual_image.reshape(20, 20)
+    def virtual_image_start(self):
+        self.virtual_image_on = not self.virtual_image_on
+        if self.virtual_image_on:
+            self.plot = Plot()
+            if not self.thread.is_alive():
+                self.thread.start()
 
-        plt.figure()
-        plt.imshow(self.core.virtual_image, cmap='gray')
-        plt.show()
+    def virtual_image(self):
+        while 1:
+                for i in range(20):
+                    for j in range(20):
+                        self.core.virtual_image[i, j] =\
+                            np.mean(self.image_view.roi.getArrayRegion(self.curr_series[i*20+j].array,
+                                                                       self.image_view.getImageItem()))
 
     def testing(self):
         # Load picture and detect edges
@@ -246,6 +254,9 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
         """
 
     def update_(self):
+        if self.virtual_image_on:
+            self.plot.update(self.core.virtual_image)
+
         if self.move_roi.checkState():
             move_speed = [0.0, 0.0]
 
