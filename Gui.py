@@ -53,9 +53,7 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
         # Virtual image threading
         self.plot = None
         self.virtual_image_on = False
-        self.thread_pool = [Thread(target=self.virtual_image) for i in range(0, multiprocessing.cpu_count()-1)]
-        for thread in self.thread_pool:
-            thread.daemon = True
+        self.thread_pool = None
 
         self.statusBar().showMessage("Ready")
 
@@ -129,6 +127,11 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
 
     def virtual_image_start(self):
         virtual_image_resolution = VirtualImageResolution()
+
+        self.thread_pool = [Thread(target=self.virtual_image) for i in range(0, multiprocessing.cpu_count()-1)]
+        for thread in self.thread_pool:
+            thread.daemon = True
+
         self.core.virtual_image = np.zeros((virtual_image_resolution.width, virtual_image_resolution.height))
         self.virtual_image_on = not self.virtual_image_on
         if self.virtual_image_on:
