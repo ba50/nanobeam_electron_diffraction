@@ -62,19 +62,20 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
 
         self.statusBar().showMessage("Loading files...")
 
-        bin_resolution = BinResolution()
         if path.basename(files_path[0][0]).split(sep='.')[1] == 'dm3':
+            tmp = Dm3Reader3_1.ReadDm3File(files_path[0][0])
             self.core.original = BraggImage(files_path[0][0],
-                                            bin_resolution.dtype,
+                                            tmp.dtype,
                                             (len(files_path[0]),
-                                             bin_resolution.width,
-                                             bin_resolution.height))
+                                             tmp.shape[0],
+                                             tmp.shape[1]))
             if self.core.original.load:
                 self.core.original.load = False
                 for index, file in enumerate(files_path[0]):
                     self.core.original.arrays[index, :, :] = Dm3Reader3_1.ReadDm3File(file)
 
         elif path.basename(files_path[0][0]).split(sep='.')[1] == 'bin':
+            bin_resolution = BinResolution()
             self.core.original = BraggImage(files_path[0][0],
                                             bin_resolution.dtype,
                                             (len(files_path[0]),
@@ -124,6 +125,8 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
                                             self.core.template,
                                             self.image_view)
         self.statusBar().showMessage("Ready")
+        self.image_view.setImage(self.core.original.arrays[0, :, :])
+        self.curr_index = 0
 
     def virtual_image_start(self):
         virtual_image_resolution = VirtualImageResolution()
@@ -152,13 +155,9 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
                                     self.image_view.getImageItem()))
 
     def log_filter(self):
-        _translate = QtCore.QCoreApplication.translate
-        self.core.log = copy.deepcopy(self.curr_series)
-        for image in self.core.log:
-            image.log(1e1, 1e14)
-        self.image_view.setImage(self.core.log[0].array)
-        self.image_series.addItem("")
-        self.image_series.setItemText(len(self.image_series)-1, _translate("MainWindow", "Log"))
+        self.core.original.log(1e1, 1e14)
+        self.image_view.setImage(self.core.original.arrays[0, :, :])
+        self.curr_index = 0
 
     def sobel_filter(self):
         self.curr_image.soble()

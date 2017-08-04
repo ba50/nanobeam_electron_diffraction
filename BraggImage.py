@@ -16,7 +16,8 @@ class BraggImage:
             self.load = True
 
     def log(self, clip_min=1, clip_max=1e14):
-        self.array = np.log(np.clip(self.array, clip_min, clip_max))
+        for i in range(self.arrays.shape[0]):
+            self.arrays[i, :, :] = np.log(np.clip(self.arrays[i, :, :], clip_min, clip_max))
 
     def soble(self):
         self.array = filters.sobel(self.array)
