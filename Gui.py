@@ -128,7 +128,7 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
     def virtual_image_start(self):
         virtual_image_resolution = VirtualImageResolution()
 
-        self.thread_pool = [Thread(target=self.virtual_image) for i in range(0, multiprocessing.cpu_count()-1)]
+        self.thread_pool = [Thread(target=self.virtual_image) for i in range(0, virtual_image_resolution.threads)]
         for thread in self.thread_pool:
             thread.daemon = True
 
