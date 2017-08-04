@@ -28,10 +28,6 @@ class Ui_MainWindow(object):
         self.verticalLayout.setSizeConstraint(QtWidgets.QLayout.SetDefaultConstraint)
         self.verticalLayout.setSpacing(0)
         self.verticalLayout.setObjectName("verticalLayout")
-        self.image_series = QtWidgets.QComboBox(self.centralwidget)
-        self.image_series.setObjectName("image_series")
-        self.image_series.addItem("")
-        self.verticalLayout.addWidget(self.image_series)
         self.curr_image_name = QtWidgets.QTextBrowser(self.centralwidget)
         self.curr_image_name.setMaximumSize(QtCore.QSize(100, 35))
         self.curr_image_name.setObjectName("curr_image_name")
@@ -108,7 +104,6 @@ class Ui_MainWindow(object):
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
-        self.image_series.setItemText(0, _translate("MainWindow", "Original"))
         self.move_roi.setText(_translate("MainWindow", "Move"))
         self.label_template.setText(_translate("MainWindow", "Template image"))
         self.menuFile.setTitle(_translate("MainWindow", "File"))

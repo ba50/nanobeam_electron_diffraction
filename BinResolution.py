@@ -13,7 +13,7 @@ class BinResolution(QDialog, bin_resolution_tamplate.Ui_Dialog):
         self.width = 512
         self.height = 512
         self.offset = 10
-        self.type = np.int32
+        self.dtype = np.int32
 
         self.lineEdit_width.setText(str(self.width))
         self.lineEdit_height.setText(str(self.height))

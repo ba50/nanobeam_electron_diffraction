@@ -40,22 +40,13 @@
      <number>0</number>
     </property>
     <item>
-     <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,0,0,0">
+     <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,0,0">
       <property name="spacing">
        <number>0</number>
       </property>
       <property name="sizeConstraint">
        <enum>QLayout::SetDefaultConstraint</enum>
       </property>
-      <item>
-       <widget class="QComboBox" name="image_series">
-        <item>
-         <property name="text">
-          <string>Original</string>
-         </property>
-        </item>
-       </widget>
-      </item>
       <item>
        <widget class="QTextBrowser" name="curr_image_name">
         <property name="maximumSize">

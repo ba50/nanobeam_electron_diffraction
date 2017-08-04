@@ -1,31 +1,22 @@
 import os.path as path
 import numpy as np
+import copy
+from threading import Thread
 
-from PyQt5 import QtWidgets, QtCore, QtGui
 import gui_template
+from PyQt5 import QtWidgets, QtCore, QtGui
 import pyqtgraph as pg
 from scipy import misc
 
 from BinReader import BinReader
+from VirtualImageResolution import VirtualImageResolution
 from BraggImage import BraggImage
 import Dm3Reader3_1
 from Centering import Centering
 from BinResolution import BinResolution
-
-import matplotlib.pyplot as plt
-from scipy.ndimage.filters import gaussian_filter
-
-from skimage import data, color
-from skimage.transform import hough_circle, hough_circle_peaks
-from skimage.feature import canny
-from skimage.draw import circle_perimeter
-from skimage.util import img_as_ubyte
-
 from Plot import Plot
 
-import copy
-
-from threading import Thread
+# Testing
 
 
 class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
@@ -33,81 +24,72 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
         super(self.__class__, self).__init__()
         self.setupUi(self)
         self.core = core
+        self.curr_image = None
         self.curr_series = None
-        self.bin_resolution = None
 
+        # Add pyqtgraph to window
         self.image_view = pg.ImageView()
-
-        self.statusBar().showMessage("Loading files...")
-        files_path = ['CCD Spectrum image_001.bin']
-        self.core.original =\
-            [BraggImage(file, BinReader.read_bin_file(file, np.int32, 10, (512, 512))) for file in files_path]
-        self.statusBar().showMessage("Ready")
-
-        self.curr_series = self.core.original
-
-        self.image_view.setImage(self.curr_series[0].array)
-        self.curr_image_name.setPlainText(self.curr_series[0].name)
-        self.slider_image_id.setMaximum(len(self.curr_series)-1)
-
-        self.curr_image = self.curr_series[0]
-
-        self.timer = QtCore.QTimer()
-        self.timer.timeout.connect(self.update_)
-        self.timer.start(100)
-
         self.image_layout.addWidget(self.image_view)
 
+        # Set timer for update function
+        self.timer = QtCore.QTimer()
+        self.timer.timeout.connect(self.update_)
+        self.timer.start(500)
+
+        # Slider for current show image
         self.slider_image_id.valueChanged.connect(self.value_change)
         self.curr_index = self.slider_image_id.value()
 
         self.actionOpen.triggered.connect(self.browse_folder)
-        if self.curr_image:
-            self.actionCenter_series.triggered.connect(self.center_series)
-            self.actionTesting.triggered.connect(self.testing)
-            self.actionVirtual_image.triggered.connect(self.virtual_image_start)
+        # Tools
+        self.actionCenter_series.triggered.connect(self.center_series)
+        self.actionVirtual_image.triggered.connect(self.virtual_image_start)
 
-            self.actionLog.triggered.connect(self.log_filter)
-            self.actionSobel.triggered.connect(self.sobel_filter)
-            self.actionCanny.triggered.connect(self.canny_filter)
+        # Filters
+        self.actionLog.triggered.connect(self.log_filter)
+        self.actionSobel.triggered.connect(self.sobel_filter)
+        self.actionCanny.triggered.connect(self.canny_filter)
 
-            self.actionWiener.triggered.connect(self.wiener_filter)
-
-            self.actionTesting_2.triggered.connect(self.testing_2)
-        else:
-            self.statusBar().showMessage("No image.")
-
-        self.image_series.activated[str].connect(self.change_series)
-
+        # Virtual image threading
         self.plot = None
         self.virtual_image_on = False
-        self.core.virtual_image = np.zeros((20, 20))
-        self.thread = Thread(target=self.virtual_image)
-        self.thread.daemon = True
+        self.thread_pool = [Thread(target=self.virtual_image) for i in range(0, 3)]
+        for thread in self.thread_pool:
+            thread.daemon = True
 
         self.statusBar().showMessage("Ready")
 
     def browse_folder(self):
-        files_path = QtWidgets.QFileDialog.getOpenFileNames(self, 'Select Folder')
+        files_path = QtWidgets.QFileDialog.getOpenFileNames(self, 'Select Files')
 
         self.statusBar().showMessage("Loading files...")
 
-        self.core.original = []
+        bin_resolution = BinResolution()
         if path.basename(files_path[0][0]).split(sep='.')[1] == 'dm3':
-            for file in files_path[0]:
-                self.core.original.append(BraggImage(file, Dm3Reader3_1.ReadDm3File(file)))
+            self.core.original = BraggImage(files_path[0][0],
+                                            bin_resolution.dtype,
+                                            (len(files_path[0]),
+                                             bin_resolution.width,
+                                             bin_resolution.height))
+            if self.core.original.load:
+                self.core.original.load = False
+                for index, file in enumerate(files_path[0]):
+                    self.core.original.arrays[index, :, :] = Dm3Reader3_1.ReadDm3File(file)
+
         elif path.basename(files_path[0][0]).split(sep='.')[1] == 'bin':
-            self.bin_resolution = BinResolution()
-            for file in files_path[0]:
-                self.core.original.append(BraggImage(file,
-                                                     BinReader.read_bin_file(file,
-                                                                             self.bin_resolution.type,
-                                                                             self.bin_resolution.offset,
-                                                                             (self.bin_resolution.width,
-                                                                              self.bin_resolution.height)
-                                                                             )
-                                                     )
-                                          )
+            self.core.original = BraggImage(files_path[0][0],
+                                            bin_resolution.dtype,
+                                            (len(files_path[0]),
+                                             bin_resolution.width,
+                                             bin_resolution.height))
+            if self.core.original.load:
+                self.core.original.load = False
+                for index, file in enumerate(files_path[0]):
+                    self.core.original.arrays[index, :, :] = \
+                        BinReader.read_bin_file(file,
+                                                bin_resolution.dtype,
+                                                bin_resolution.offset,
+                                                (bin_resolution.width, bin_resolution.height))
         else:
             self.statusBar().showMessage("Not supported file type.")
 
@@ -115,20 +97,20 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
 
         self.curr_series = self.core.original
 
-        self.curr_image = self.curr_series[self.curr_index]
-        self.image_view.setImage(self.curr_image.array)
-        self.curr_image_name.setPlainText(self.curr_image.name)
-        self.slider_image_id.setMaximum(len(self.curr_series)-1)
+        self.curr_image = self.curr_series.arrays[self.curr_index, :, :]
+        self.image_view.setImage(self.curr_image)
+        self.curr_image_name.setPlainText(str(self.curr_index))
+        self.slider_image_id.setMaximum(self.curr_series.arrays.shape[0]-1)
 
     def value_change(self):
         self.curr_index = self.slider_image_id.value()
-        self.curr_image = self.curr_series[self.curr_index]
-        self.image_view.setImage(self.curr_image.array)
-        self.curr_image_name.setPlainText(self.curr_image.name)
+        self.curr_image = self.curr_series.arrays[self.curr_index, :, :]
+        self.image_view.setImage(self.curr_image)
+        self.curr_image_name.setPlainText(str(self.curr_index))
 
     def load_template(self):
-        image = self.image_view.roi.getArrayRegion(self.curr_image.array, self.image_view.getImageItem())
-        self.core.template = BraggImage(self.curr_image.name, image)
+        image = self.image_view.roi.getArrayRegion(self.curr_image, self.image_view.getImageItem())
+        self.core.template = image
 
         image = misc.imresize(image, (100, 100))
         image = np.flip(image, 0)
@@ -139,68 +121,32 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
 
     def center_series(self):
         self.load_template()
-        _translate = QtCore.QCoreApplication.translate
         self.statusBar().showMessage("Centering...")
-        if self.core.template:
-            self.core.center = Centering().move(self.core.original,
-                                                self.core.template,
-                                                self.image_view)
-            self.statusBar().showMessage("Ready")
-            self.image_series.addItem("")
-            self.image_series.setItemText(len(self.image_series)-1, _translate("MainWindow", "Centred"))
-        else:
-            self.statusBar().showMessage("Empty template.")
+        self.core.center = Centering().move(self.core.original,
+                                            self.core.template,
+                                            self.image_view)
+        self.statusBar().showMessage("Ready")
 
     def virtual_image_start(self):
+        virtual_image_resolution = VirtualImageResolution()
+        self.core.virtual_image = np.zeros((virtual_image_resolution.width, virtual_image_resolution.height))
         self.virtual_image_on = not self.virtual_image_on
         if self.virtual_image_on:
             self.plot = Plot()
-            if not self.thread.is_alive():
-                self.thread.start()
+            for thread in self.thread_pool:
+                if not thread.is_alive():
+                    thread.start()
 
+    # In another thread
     def virtual_image(self):
         while 1:
-                for i in range(20):
-                    for j in range(20):
+                for i in range(self.core.virtual_image.shape[0]):
+                    for j in range(self.core.virtual_image.shape[1]):
                         self.core.virtual_image[i, j] =\
-                            np.mean(self.image_view.roi.getArrayRegion(self.curr_series[i*20+j].array,
-                                                                       self.image_view.getImageItem()))
-
-    def testing(self):
-        # Load picture and detect edges
-        image = self.curr_image.array
-        plt.imshow(image)
-        #image = img_as_ubyte(data.coins()[160:230, 70:270])
-        edges = canny(image, sigma=1, low_threshold=0, high_threshold=1e10)
-
-        # Detect two radii
-        hough_radii = np.arange(20, 35, 2)
-        hough_res = hough_circle(edges, hough_radii)
-
-        # Select the most prominent 5 circles
-        accums, cx, cy, radii = hough_circle_peaks(hough_res, hough_radii,
-                                                   total_num_peaks=3)
-
-        # Draw them
-        fig, ax = plt.subplots(ncols=1, nrows=1, figsize=(10, 4))
-        image = color.gray2rgb(image)
-        for center_y, center_x, radius in zip(cy, cx, radii):
-            circy, circx = circle_perimeter(center_y, center_x, radius)
-            image[circy, circx] = (220, 20, 20)
-
-        ax.imshow(image, cmap=plt.cm.gray)
-        plt.show()
-
-    def change_series(self, text):
-        if text == 'Original':
-            self.curr_series = self.core.original
-        elif text == 'Centred':
-            self.curr_series = self.core.center
-        elif text == 'Log':
-            self.curr_series = self.core.log
-
-        self.curr_image = self.curr_series[self.curr_index]
-        self.image_view.setImage(self.curr_image.array)
+                            np.mean(
+                                self.image_view.roi.getArrayRegion(
+                                    self.curr_series.arrays[i*self.core.virtual_image.shape[0]+j, :, :],
+                                    self.image_view.getImageItem()))
 
     def log_filter(self):
         _translate = QtCore.QCoreApplication.translate
@@ -223,36 +169,6 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
         self.curr_image.wiener()
         self.image_view.setImage(self.curr_image.array)
 
-    def testing_2(self):
-
-        data = self.curr_image.array
-        total = data.sum()
-        X, Y = np.indices(data.shape)
-        x = (X*data).sum()/total
-        y = (Y*data).sum()/total
-        col = data[:, int(y)]
-        width_x = np.sqrt(np.abs((np.arange(col.size)-y)**2*col).sum()/col.sum())
-        row = data[int(x), :]
-        width_y = np.sqrt(np.abs((np.arange(row.size)-x)**2*row).sum()/row.sum())
-
-        self.core.background = gaussian_filter(self.curr_image.array, [width_x, width_y])
-
-        plt.figure()
-        plt.imshow(self.core.background, cmap='gray')
-        plt.show()
-
-        self.curr_image = BraggImage(self.curr_image.name, np.clip(self.curr_image.array - self.core.background, 0, 1e14))
-        self.image_view.setImage(self.curr_image.array)
-
-        """
-        image = np.gradient(self.curr_image.array)
-        plt.figure()
-        plt.imshow(image[0], cmap='gray')
-        plt.figure()
-        plt.imshow(image[1], cmap='gray')
-        plt.show(block=False)
-        """
-
     def update_(self):
         if self.virtual_image_on:
             self.plot.update(self.core.virtual_image)
@@ -262,10 +178,10 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
 
             if self.image_view.roi.pos()[0] + self.image_view.roi.size()[0]\
                     > self.image_view.getView().viewRange()[0][1]:
-                move_speed[0] = .1
+                move_speed[0] = 1
 
             if self.image_view.roi.pos()[1] + self.image_view.roi.size()[1]\
                     > self.image_view.getView().viewRange()[1][1]:
-                move_speed[1] = .1
+                move_speed[1] = 1
 
             self.image_view.getView().translateBy(x=move_speed[0], y=move_speed[1])

@@ -1,17 +1,19 @@
 import os.path as path
+import os
+
 
 import numpy as np
-import matplotlib.pyplot as plt
-from skimage import filters, feature
-from scipy import misc
-from scipy import signal
 
 
 class BraggImage:
-    def __init__(self, file_name, array):
-        self.name = path.basename(file_name)
-        self.array = np.copy(array)
-        self.disks = []
+    def __init__(self, file_path, dtype, shape):
+        self.name = path.basename(file_path.split(sep='.')[0])
+        self.load = False
+        if path.isfile(self.name):
+            self.arrays = np.memmap(self.name, dtype=dtype, mode='r+', shape=shape)
+        else:
+            self.arrays = np.memmap(self.name, dtype=dtype, mode='w+', shape=shape)
+            self.load = True
 
     def log(self, clip_min=1, clip_max=1e14):
         self.array = np.log(np.clip(self.array, clip_min, clip_max))
@@ -25,31 +27,21 @@ class BraggImage:
     def wiener(self):
         self.array = signal.wiener(self.array)
 
-    def move(self, dx, dy):
+    def move(self, index, dx, dy):
+        tmp = self.arrays[index, :, :]
         if dx > 0:
-            self.array = self.array[:, dx:self.array.shape[0]]
-            self.array = np.c_[self.array, np.zeros((self.array.shape[0], dx))]
+            tmp = self.arrays[index, :, dx:self.arrays.shape[1]]
+            tmp = np.c_[tmp, np.zeros((self.arrays.shape[1], dx))]
         elif dx < 0:
-            self.array = self.array[:, 0:self.array.shape[1]+dx]
-            self.array = np.c_[np.zeros((self.array.shape[0], abs(dx))), self.array]
+            tmp = self.arrays[index, :, 0:self.arrays.shape[2]+dx]
+            tmp = np.c_[np.zeros((self.arrays.shape[1], abs(dx))), tmp]
 
         if dy > 0:
-            self.array = self.array[0:self.array.shape[0]-dy, :]
-            self.array = np.r_[np.zeros((dy, self.array.shape[1])), self.array]
+            tmp = self.arrays[index, 0:self.arrays.shape[1]-dy, :]
+            tmp = np.r_[np.zeros((dy, self.arrays.shape[2])), tmp]
         elif dy < 0:
-            self.array = self.array[abs(dy):self.array.shape[1], :]
-            self.array = np.r_[self.array, np.zeros((abs(dy), self.array.shape[1]))]
+            tmp = self.arrays[index, abs(dy):self.arrays.shape[2], :]
+            tmp = np.r_[tmp, np.zeros((abs(dy), self.arrays.shape[2]))]
 
-    def find_disks(self):
-        pass
+        self.arrays[index, :, :] = tmp
 
-    def save(self, file):
-        misc.imsave(file, self.array)
-
-    def plot(self):
-        fig, ax = plt.subplots()
-        circles = [plt.Circle((disk[0], disk[1]), disk[2], color='r', alpha=.25) for disk in self.disks]
-        for circle in circles:
-            ax.add_artist(circle)
-        plt.imshow(self.array, cmap='gray')
-        plt.show()
