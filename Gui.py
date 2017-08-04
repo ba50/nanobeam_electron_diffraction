@@ -17,7 +17,7 @@ from BinResolution import BinResolution
 from Plot import Plot
 
 # Testing
-
+import multiprocessing
 
 class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
     def __init__(self, core):
@@ -53,7 +53,7 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
         # Virtual image threading
         self.plot = None
         self.virtual_image_on = False
-        self.thread_pool = [Thread(target=self.virtual_image) for i in range(0, 3)]
+        self.thread_pool = [Thread(target=self.virtual_image) for i in range(0, multiprocessing.cpu_count()-1)]
         for thread in self.thread_pool:
             thread.daemon = True
 
