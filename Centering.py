@@ -14,8 +14,8 @@ class Centering:
     def move(self, images_in, template, image_view):
         self.template = template
 
-        faces = [image_view.roi.getArrayRegion(images_in.arrays[i, :, :], image_view.getImageItem())
-                 for i in range(images_in.arrays.shape[0])]
+        faces = [image_view.roi.getArrayRegion(images_in.array[i, :, :], image_view.getImageItem())
+                 for i in range(images_in.array.shape[0])]
 
         with multiprocessing.Pool(multiprocessing.cpu_count()-1) as p:
             cross = p.map(self.correlation2d, faces)

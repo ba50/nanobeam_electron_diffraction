@@ -127,7 +127,7 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
                                             self.core.template,
                                             self.image_view)
         self.statusBar().showMessage("Ready")
-        self.image_view.setImage(self.core.original.arrays[0, :, :])
+        self.image_view.setImage(self.core.original.array[0, :, :])
         self.curr_index = 0
 
     def virtual_image_start(self):
@@ -153,7 +153,7 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
                         self.core.virtual_image[i, j] =\
                             np.mean(
                                 self.image_view.roi.getArrayRegion(
-                                    self.curr_series.arrays[i*self.core.virtual_image.shape[0]+j, :, :],
+                                    self.curr_series.array[i*self.core.virtual_image.shape[0]+j, :, :],
                                     self.image_view.getImageItem()))
 
     def log_filter(self):
