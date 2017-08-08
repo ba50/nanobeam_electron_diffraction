@@ -8,16 +8,18 @@ from PyQt5 import QtWidgets, QtCore, QtGui
 import pyqtgraph as pg
 from scipy import misc
 
-from BinReader import BinReader
 from VirtualImageResolution import VirtualImageResolution
+from BinResolution import BinResolution
+from DataStore import DataStore
+
 from BraggImage import BraggImage
+from BinReader import BinReader
 import Dm3Reader3_1
 from Centering import Centering
-from BinResolution import BinResolution
 from Plot import Plot
 
 # Testing
-import multiprocessing
+
 
 class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
     def __init__(self, core):
@@ -41,6 +43,7 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
         self.curr_index = self.slider_image_id.value()
 
         self.actionOpen.triggered.connect(self.browse_folder)
+
         # Tools
         self.actionCenter_series.triggered.connect(self.center_series)
         self.actionVirtual_image.triggered.connect(self.virtual_image_start)
@@ -58,52 +61,51 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
         self.statusBar().showMessage("Ready")
 
     def browse_folder(self):
-        files_path = QtWidgets.QFileDialog.getOpenFileNames(self, 'Select Files')
-
         self.statusBar().showMessage("Loading files...")
 
-        if path.basename(files_path[0][0]).split(sep='.')[1] == 'dm3':
-            tmp = Dm3Reader3_1.ReadDm3File(files_path[0][0])
-            self.core.original = BraggImage(files_path[0][0],
-                                            tmp.dtype,
-                                            (len(files_path[0]),
-                                             tmp.shape[0],
-                                             tmp.shape[1]))
-            if self.core.original.load:
-                self.core.original.load = False
-                for index, file in enumerate(files_path[0]):
-                    self.core.original.arrays[index, :, :] = Dm3Reader3_1.ReadDm3File(file)
+        data_store = DataStore()
 
-        elif path.basename(files_path[0][0]).split(sep='.')[1] == 'bin':
-            bin_resolution = BinResolution()
-            self.core.original = BraggImage(files_path[0][0],
-                                            bin_resolution.dtype,
-                                            (len(files_path[0]),
-                                             bin_resolution.width,
-                                             bin_resolution.height))
-            if self.core.original.load:
-                self.core.original.load = False
-                for index, file in enumerate(files_path[0]):
-                    self.core.original.arrays[index, :, :] = \
-                        BinReader.read_bin_file(file,
-                                                bin_resolution.dtype,
-                                                bin_resolution.offset,
-                                                (bin_resolution.width, bin_resolution.height))
-        else:
-            self.statusBar().showMessage("Not supported file type.")
+        if data_store.set_parameters:
+            if path.basename(data_store.files_path[0]).split(sep='.')[1] == 'dm3':
+                tmp = Dm3Reader3_1.ReadDm3File(data_store.files_path[0])
 
-        self.statusBar().showMessage("Read")
+                self.core.original = BraggImage(data_store.files_path[0],
+                                                tmp.dtype,
+                                                [len(data_store.files_path), tmp.shape[0], tmp.shape[1]],
+                                                data_store.store_data_on
+                                                )
 
-        self.curr_series = self.core.original
+                if self.core.original.load:
+                    self.core.original.load = False
+                    for index, file in enumerate(data_store.files_path):
+                        self.core.original.array[index, :, :] = Dm3Reader3_1.ReadDm3File(file)
 
-        self.curr_image = self.curr_series.arrays[self.curr_index, :, :]
-        self.image_view.setImage(self.curr_image)
-        self.curr_image_name.setPlainText(str(self.curr_index))
-        self.slider_image_id.setMaximum(self.curr_series.arrays.shape[0]-1)
+            elif path.basename(data_store.files_path[0]).split(sep='.')[1] == 'bin':
+                self.core.original = BraggImage(data_store.files_path[0],
+                                                data_store.bin_resolution.dtype,
+                                                [len(data_store.files_path),
+                                                 data_store.bin_resolution.shape[0],
+                                                 data_store.bin_resolution.shape[1]],
+                                                data_store.store_data_on
+                                                )
+                if self.core.original.load:
+                    self.core.original.load = False
+                    self.core.original.array = BinReader.read_bin_file(data_store.files_path, data_store.bin_resolution)
+            else:
+                self.statusBar().showMessage("Not supported file type.")
+
+            self.statusBar().showMessage("Read")
+
+            self.curr_series = self.core.original
+
+            self.curr_image = self.curr_series.array[self.curr_index, :, :]
+            self.image_view.setImage(self.curr_image)
+            self.curr_image_name.setPlainText(str(self.curr_index))
+            self.slider_image_id.setMaximum(self.curr_series.array.shape[0] - 1)
 
     def value_change(self):
         self.curr_index = self.slider_image_id.value()
-        self.curr_image = self.curr_series.arrays[self.curr_index, :, :]
+        self.curr_image = self.curr_series.array[self.curr_index, :, :]
         self.image_view.setImage(self.curr_image)
         self.curr_image_name.setPlainText(str(self.curr_index))
 

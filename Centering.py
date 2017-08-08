@@ -3,8 +3,6 @@ import numpy as np
 from scipy import signal
 import multiprocessing
 
-import matplotlib.pyplot as plt
-
 
 class Centering:
     def __init__(self):

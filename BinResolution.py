@@ -10,13 +10,12 @@ class BinResolution(QDialog, bin_resolution_tamplate.Ui_Dialog):
         super(self.__class__, self).__init__()
         self.setupUi(self)
 
-        self.width = 512
-        self.height = 512
+        self.shape = [512, 512]
         self.offset = 10
         self.dtype = np.int32
 
-        self.lineEdit_width.setText(str(self.width))
-        self.lineEdit_height.setText(str(self.height))
+        self.lineEdit_width.setText(str(self.shape[0]))
+        self.lineEdit_height.setText(str(self.shape[1]))
         self.lineEdit_offset.setText(str(self.offset))
 
         self.buttonBox_set_resolution.accepted.connect(self.set_resolution)
@@ -27,8 +26,7 @@ class BinResolution(QDialog, bin_resolution_tamplate.Ui_Dialog):
         self.exec_()
 
     def set_resolution(self):
-        self.width = int(self.lineEdit_width.text())
-        self.height = int(self.lineEdit_height.text())
+        self.shape = int(self.lineEdit_width.text()), int(self.lineEdit_height.text())
         self.offset = int(self.lineEdit_offset.text())
 
     def change_type(self, text):
