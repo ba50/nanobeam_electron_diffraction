@@ -1,6 +1,6 @@
 import os.path as path
 import numpy as np
-from threading import Thread
+from multiprocessing import Process
 
 import gui_template
 from PyQt5 import QtWidgets, QtCore, QtGui
@@ -17,6 +17,16 @@ from Plot import Plot
 
 # Testing
 import copy
+
+
+# In another thread
+def virtual_image(virtual_image_, curr_series, image_view):
+    while 1:
+            for i in range(virtual_image_.shape[0]):
+                for j in range(virtual_image_.shape[1]):
+                    virtual_image[i, j] =\
+                        np.mean(image_view.roi.getArrayRegion(curr_series[i*virtual_image_.shape[0]+j, :, :],
+                                                              image_view.getImageItem()))
 
 
 class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
@@ -55,7 +65,7 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
         # Virtual image threading
         self.plot = None
         self.virtual_image_on = False
-        self.thread_pool = None
+        self.process_pool = None
 
         self.statusBar().showMessage("Ready")
 
@@ -140,30 +150,9 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
         self.statusBar().showMessage("Ready")
 
     def virtual_image_start(self):
-        virtual_image_resolution = VirtualImageResolution()
-
-        self.thread_pool = [Thread(target=self.virtual_image) for i in range(0, virtual_image_resolution.threads)]
-        for thread in self.thread_pool:
-            thread.daemon = True
-
-        self.core.virtual_image = np.zeros((virtual_image_resolution.width, virtual_image_resolution.height))
-        self.virtual_image_on = not self.virtual_image_on
-        if self.virtual_image_on:
-            self.plot = Plot()
-            for thread in self.thread_pool:
-                if not thread.is_alive():
-                    thread.start()
-
-    # In another thread
-    def virtual_image(self):
-        while 1:
-                for i in range(self.core.virtual_image.shape[0]):
-                    for j in range(self.core.virtual_image.shape[1]):
-                        self.core.virtual_image[i, j] =\
-                            np.mean(
-                                self.image_view.roi.getArrayRegion(
-                                    self.curr_series.array[i*self.core.virtual_image.shape[0]+j, :, :],
-                                    self.image_view.getImageItem()))
+        p = Process(target=virtual_image, args=(self.core.virtual_image, self.curr_series.array, self.image_view))
+        p.daemon = True
+        p.start()
 
     def log_filter(self):
         self.core.original.log(1e1, 1e14)
