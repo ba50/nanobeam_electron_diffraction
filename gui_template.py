@@ -86,7 +86,10 @@ class Ui_MainWindow(object):
         self.actionTesting_2.setObjectName("actionTesting_2")
         self.actionVirtual_image = QtWidgets.QAction(MainWindow)
         self.actionVirtual_image.setObjectName("actionVirtual_image")
+        self.actionSave = QtWidgets.QAction(MainWindow)
+        self.actionSave.setObjectName("actionSave")
         self.menuFile.addAction(self.actionOpen)
+        self.menuFile.addAction(self.actionSave)
         self.menuTools.addAction(self.actionCenter_series)
         self.menuTools.addAction(self.actionVirtual_image)
         self.menuTools.addAction(self.actionTesting)
@@ -120,4 +123,5 @@ class Ui_MainWindow(object):
         self.actionWiener.setText(_translate("MainWindow", "Wiener"))
         self.actionTesting_2.setText(_translate("MainWindow", "Testing"))
         self.actionVirtual_image.setText(_translate("MainWindow", "Virtual image"))
+        self.actionSave.setText(_translate("MainWindow", "Save"))
 

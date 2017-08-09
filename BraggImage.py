@@ -3,20 +3,13 @@ import numpy as np
 
 
 class BraggImage:
-    def __init__(self, file_path, dtype, shape, store_data_on):
+    def __init__(self, file_path, dtype, shape):
         self.name = path.basename(file_path.split(sep='.')[0])
-        if store_data_on == 'RAM':
-            self.load = True
-        elif store_data_on == 'HDD':
-            self.load = False
+        self.array = np.zeros(shape, dtype)
 
-        if path.isfile(self.name) and store_data_on == 'HDD':
-            self.array = np.memmap(self.name, dtype=dtype, mode='r+', shape=shape)
-        elif store_data_on == 'HDD':
-            self.array = np.memmap(self.name, dtype=dtype, mode='w+', shape=shape)
-            self.load = True
-        elif store_data_on == 'RAM':
-            self.array = np.zeros(shape=shape).astype(dtype)
+    def save(self, file_path):
+        save_file = np.memmap(file_path, self.array.dtype, 'w+', 0, self.array.shape)
+        save_file[:] = self.array[:]
 
     def log(self, clip_min=1, clip_max=1e14):
         for i in range(self.array.shape[0]):

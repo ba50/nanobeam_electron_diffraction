@@ -1,6 +1,5 @@
 import os.path as path
 import numpy as np
-import copy
 from threading import Thread
 
 import gui_template
@@ -10,15 +9,14 @@ from scipy import misc
 
 from VirtualImageResolution import VirtualImageResolution
 from BinResolution import BinResolution
-from DataStore import DataStore
 
 from BraggImage import BraggImage
-from BinReader import BinReader
 import Dm3Reader3_1
 from Centering import Centering
 from Plot import Plot
 
 # Testing
+import copy
 
 
 class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
@@ -42,7 +40,8 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
         self.slider_image_id.valueChanged.connect(self.value_change)
         self.curr_index = self.slider_image_id.value()
 
-        self.actionOpen.triggered.connect(self.browse_folder)
+        self.actionOpen.triggered.connect(self.open_files)
+        self.actionSave.triggered.connect(self.save_files)
 
         # Tools
         self.actionCenter_series.triggered.connect(self.center_series)
@@ -60,48 +59,60 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
 
         self.statusBar().showMessage("Ready")
 
-    def browse_folder(self):
+    def open_files(self):
+        files_path = QtWidgets.QFileDialog.getOpenFileNames(self, "Open file")
+        files_path = files_path[0]
         self.statusBar().showMessage("Loading files...")
 
-        data_store = DataStore()
+        files_type = path.basename(files_path[0]).split(sep='.')[1]
 
-        if data_store.set_parameters:
-            if path.basename(data_store.files_path[0]).split(sep='.')[1] == 'dm3':
-                tmp = Dm3Reader3_1.ReadDm3File(data_store.files_path[0])
+        if files_type == 'dm3':
+            tmp = Dm3Reader3_1.ReadDm3File(files_path[0])
 
-                self.core.original = BraggImage(data_store.files_path[0],
-                                                tmp.dtype,
-                                                [len(data_store.files_path), tmp.shape[0], tmp.shape[1]],
-                                                data_store.store_data_on
-                                                )
+            self.core.original = BraggImage(files_path[0],
+                                            tmp.dtype,
+                                            [len(files_path), tmp.shape[0], tmp.shape[1]])
 
-                if self.core.original.load:
-                    self.core.original.load = False
-                    for index, file in enumerate(data_store.files_path):
-                        self.core.original.array[index, :, :] = Dm3Reader3_1.ReadDm3File(file)
+            for index, file in enumerate(files_path):
+                self.core.original.array[index, :, :] = Dm3Reader3_1.ReadDm3File(file)
 
-            elif path.basename(data_store.files_path[0]).split(sep='.')[1] == 'bin':
-                self.core.original = BraggImage(data_store.files_path[0],
-                                                data_store.bin_resolution.dtype,
-                                                [len(data_store.files_path),
-                                                 data_store.bin_resolution.shape[0],
-                                                 data_store.bin_resolution.shape[1]],
-                                                data_store.store_data_on
-                                                )
-                if self.core.original.load:
-                    self.core.original.load = False
-                    self.core.original.array = BinReader.read_bin_file(data_store.files_path, data_store.bin_resolution)
-            else:
-                self.statusBar().showMessage("Not supported file type.")
+        elif files_type == 'bin':
+            bin_resolution = BinResolution()
+            self.core.original = BraggImage(files_path[0],
+                                            bin_resolution.dtype,
+                                            [len(files_path),
+                                             bin_resolution.shape[1],
+                                             bin_resolution.shape[2]])
 
-            self.statusBar().showMessage("Read")
+            for index, file in enumerate(files_path):
+                self.core.original.array[index, :, :] = copy.deepcopy(np.memmap(file,
+                                                                                bin_resolution.dtype,
+                                                                                'r',
+                                                                                bin_resolution.offset,
+                                                                                (bin_resolution.shape[1], bin_resolution.shape[2])))
+        elif files_type == 'raw':
+            bin_resolution = BinResolution()
+            self.core.original = BraggImage(files_path[0], bin_resolution.dtype, bin_resolution.shape)
 
-            self.curr_series = self.core.original
+            self.core.original.array = copy.deepcopy(np.memmap(files_path[0],
+                                                               bin_resolution.dtype,
+                                                               'r+',
+                                                               bin_resolution.offset,
+                                                               bin_resolution.shape))
+        else:
+            self.statusBar().showMessage("Not supported file type.")
 
-            self.curr_image = self.curr_series.array[self.curr_index, :, :]
-            self.image_view.setImage(self.curr_image)
-            self.curr_image_name.setPlainText(str(self.curr_index))
-            self.slider_image_id.setMaximum(self.curr_series.array.shape[0] - 1)
+        self.curr_series = self.core.original
+        self.curr_image = self.curr_series.array[self.curr_index, :, :]
+        self.image_view.setImage(self.curr_image)
+        self.curr_image_name.setPlainText(str(self.curr_index))
+        self.slider_image_id.setMaximum(self.curr_series.array.shape[0] - 1)
+
+        self.statusBar().showMessage("Read")
+
+    def save_files(self):
+        file_path = QtWidgets.QFileDialog.getSaveFileName(self, 'Save File')
+        self.curr_series.save(file_path[0])
 
     def value_change(self):
         self.curr_index = self.slider_image_id.value()
@@ -123,12 +134,10 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
     def center_series(self):
         self.load_template()
         self.statusBar().showMessage("Centering...")
-        self.core.center = Centering().move(self.core.original,
-                                            self.core.template,
-                                            self.image_view)
+        Centering().move(self.core.original,
+                         self.core.template,
+                         self.image_view)
         self.statusBar().showMessage("Ready")
-        self.image_view.setImage(self.core.original.array[0, :, :])
-        self.curr_index = 0
 
     def virtual_image_start(self):
         virtual_image_resolution = VirtualImageResolution()
