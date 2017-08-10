@@ -8,7 +8,6 @@ class Plot:
 
         self.fig, self.ax = plt.subplots()
         self.draw()
-        plt.show(block=False)
 
     def update(self, image):
         self.image = image

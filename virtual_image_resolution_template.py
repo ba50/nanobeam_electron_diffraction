@@ -39,7 +39,7 @@ class Ui_Dialog(object):
         self.lineEdit_threads.setGeometry(QtCore.QRect(130, 70, 31, 20))
         self.lineEdit_threads.setObjectName("lineEdit_threads")
         self.label_3 = QtWidgets.QLabel(Dialog)
-        self.label_3.setGeometry(QtCore.QRect(30, 70, 47, 13))
+        self.label_3.setGeometry(QtCore.QRect(30, 70, 71, 16))
         self.label_3.setObjectName("label_3")
 
         self.retranslateUi(Dialog)
@@ -49,8 +49,8 @@ class Ui_Dialog(object):
 
     def retranslateUi(self, Dialog):
         _translate = QtCore.QCoreApplication.translate
-        Dialog.setWindowTitle(_translate("Dialog", "Dialog"))
+        Dialog.setWindowTitle(_translate("Dialog", "Image Resolution"))
         self.label.setText(_translate("Dialog", "X"))
         self.label_2.setText(_translate("Dialog", "Y"))
-        self.label_3.setText(_translate("Dialog", "Threads"))
+        self.label_3.setText(_translate("Dialog", "CPU Threads"))
 

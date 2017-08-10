@@ -1,32 +1,21 @@
 import os.path as path
 import numpy as np
-from multiprocessing import Process
+import copy
+from threading import Thread, Timer
 
 import gui_template
 from PyQt5 import QtWidgets, QtCore, QtGui
 import pyqtgraph as pg
 from scipy import misc
 
-from VirtualImageResolution import VirtualImageResolution
 from BinResolution import BinResolution
 
 from BraggImage import BraggImage
 import Dm3Reader3_1
 from Centering import Centering
-from Plot import Plot
 
 # Testing
-import copy
-
-
-# In another thread
-def virtual_image(virtual_image_, curr_series, image_view):
-    while 1:
-            for i in range(virtual_image_.shape[0]):
-                for j in range(virtual_image_.shape[1]):
-                    virtual_image[i, j] =\
-                        np.mean(image_view.roi.getArrayRegion(curr_series[i*virtual_image_.shape[0]+j, :, :],
-                                                              image_view.getImageItem()))
+from VirtualImagePlot import VirtualImagePlot
 
 
 class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
@@ -44,7 +33,7 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
         # Set timer for update function
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.update_)
-        self.timer.start(500)
+        self.timer.start(30)
 
         # Slider for current show image
         self.slider_image_id.valueChanged.connect(self.value_change)
@@ -62,10 +51,7 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
         self.actionSobel.triggered.connect(self.sobel_filter)
         self.actionCanny.triggered.connect(self.canny_filter)
 
-        # Virtual image threading
-        self.plot = None
-        self.virtual_image_on = False
-        self.process_pool = None
+        self.vi_plot = None
 
         self.statusBar().showMessage("Ready")
 
@@ -121,38 +107,52 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
         self.statusBar().showMessage("Read")
 
     def save_files(self):
-        file_path = QtWidgets.QFileDialog.getSaveFileName(self, 'Save File')
-        self.curr_series.save(file_path[0])
+        if self.curr_series:
+            file_path = QtWidgets.QFileDialog.getSaveFileName(self, 'Save File')
+            self.curr_series.save(file_path[0])
+        else:
+            self.statusBar().showMessage('No files')
 
     def value_change(self):
         self.curr_index = self.slider_image_id.value()
         self.curr_image = self.curr_series.array[self.curr_index, :, :]
-        self.image_view.setImage(self.curr_image)
         self.curr_image_name.setPlainText(str(self.curr_index))
+        self.image_view.setImage(self.curr_image,
+                                 levels=(self.image_view.levelMin, self.image_view.levelMax),
+                                 )
+        test = self.image_view.getImageItem()
+        print(test.viewTransformChanged())
 
     def load_template(self):
-        image = self.image_view.roi.getArrayRegion(self.curr_image, self.image_view.getImageItem())
-        self.core.template = image
+        if self.curr_series:
+            image = self.image_view.roi.getArrayRegion(self.curr_image, self.image_view.getImageItem())
+            self.core.template = image
 
-        image = misc.imresize(image, (100, 100))
-        image = np.flip(image, 0)
-        image = misc.imrotate(image, -90)
+            image = misc.imresize(image, (100, 100))
+            image = np.flip(image, 0)
+            image = misc.imrotate(image, -90)
 
-        misc.imsave('template.png', image)
-        self.label_template.setPixmap(QtGui.QPixmap('template.png'))
+            misc.imsave('template.png', image)
+            self.label_template.setPixmap(QtGui.QPixmap('template.png'))
+        else:
+            self.statusBar().showMessage('No files')
 
     def center_series(self):
-        self.load_template()
-        self.statusBar().showMessage("Centering...")
-        Centering().move(self.core.original,
-                         self.core.template,
-                         self.image_view)
-        self.statusBar().showMessage("Ready")
+        if self.curr_series:
+            self.load_template()
+            self.statusBar().showMessage("Centering...")
+            Centering().move(self.core.original,
+                             self.core.template,
+                             self.image_view)
+            self.statusBar().showMessage("Ready")
+        else:
+            self.statusBar().showMessage('No files')
 
     def virtual_image_start(self):
-        p = Process(target=virtual_image, args=(self.core.virtual_image, self.curr_series.array, self.image_view))
-        p.daemon = True
-        p.start()
+        if self.curr_series:
+            self.vi_plot = VirtualImagePlot(self.curr_series, self.image_view)
+        else:
+            self.statusBar().showMessage('No files')
 
     def log_filter(self):
         self.core.original.log(1e1, 1e14)
@@ -172,9 +172,6 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
         self.image_view.setImage(self.curr_image.array)
 
     def update_(self):
-        if self.virtual_image_on:
-            self.plot.update(self.core.virtual_image)
-
         if self.move_roi.checkState():
             move_speed = [0.0, 0.0]
 
