@@ -10,9 +10,9 @@ class BinResolution(QDialog, bin_resolution_template.Ui_Dialog):
         super(self.__class__, self).__init__()
         self.setupUi(self)
 
-        self.shape = 400, 512, 512
+        self.shape = 1, 512, 512
         self.offset = 0
-        self.dtype = np.int32
+        self.dtype = np.int16
 
         self.lineEdit_z.setText(str(self.shape[0]))
         self.lineEdit_width.setText(str(self.shape[1]))

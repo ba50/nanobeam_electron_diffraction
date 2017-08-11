@@ -44,7 +44,7 @@ class VirtualImagePlot(QDialog, virtual_image_plot_template.Ui_Dialog_virtual_im
             for i in range(self.virtual_image.shape[0]):
                 for j in range(self.virtual_image.shape[1]):
                     self.virtual_image[i, j] =\
-                        np.mean(self.image_view.roi.getArrayRegion(self.curr_series.array[i*self.virtual_image.shape[0]+j, :, :], self.image_view.getImageItem()))
+                        np.mean(self.image_view.roi.getArrayRegion(self.curr_series.array[j*self.virtual_image.shape[0]+i, :, :], self.image_view.getImageItem()))
             self.image_view_.setImage(self.virtual_image)
 
     def closeEvent(self, a0: QtGui.QCloseEvent):

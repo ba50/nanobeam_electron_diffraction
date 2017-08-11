@@ -1,7 +1,6 @@
 import os.path as path
 import numpy as np
 import copy
-from threading import Thread, Timer
 
 import gui_template
 from PyQt5 import QtWidgets, QtCore, QtGui
@@ -13,9 +12,10 @@ from BinResolution import BinResolution
 from BraggImage import BraggImage
 import Dm3Reader3_1
 from Centering import Centering
+from VirtualImagePlot import VirtualImagePlot
 
 # Testing
-from VirtualImagePlot import VirtualImagePlot
+from FindCircle import FindCircle
 
 
 class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
@@ -25,6 +25,8 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
         self.core = core
         self.curr_image = None
         self.curr_series = None
+        self.vi_plot = None
+        self.find_circle = None
 
         # Add pyqtgraph to window
         self.image_view = pg.ImageView()
@@ -32,26 +34,26 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
 
         # Set timer for update function
         self.timer = QtCore.QTimer()
-        self.timer.timeout.connect(self.update_)
-        self.timer.start(30)
+        self.timer.timeout.connect(self.update_move_roi)
+        self.timer.start(100)
 
         # Slider for current show image
         self.slider_image_id.valueChanged.connect(self.value_change)
         self.curr_index = self.slider_image_id.value()
 
+        # Load and Save
         self.actionOpen.triggered.connect(self.open_files)
         self.actionSave.triggered.connect(self.save_files)
 
         # Tools
         self.actionCenter_series.triggered.connect(self.center_series)
         self.actionVirtual_image.triggered.connect(self.virtual_image_start)
+        self.actionFind_circles.triggered.connect(self.find_circle_start)
 
         # Filters
         self.actionLog.triggered.connect(self.log_filter)
         self.actionSobel.triggered.connect(self.sobel_filter)
         self.actionCanny.triggered.connect(self.canny_filter)
-
-        self.vi_plot = None
 
         self.statusBar().showMessage("Ready")
 
@@ -115,13 +117,9 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
 
     def value_change(self):
         self.curr_index = self.slider_image_id.value()
-        self.curr_image = self.curr_series.array[self.curr_index, :, :]
         self.curr_image_name.setPlainText(str(self.curr_index))
-        self.image_view.setImage(self.curr_image,
-                                 levels=(self.image_view.levelMin, self.image_view.levelMax),
-                                 )
-        test = self.image_view.getImageItem()
-        print(test.viewTransformChanged())
+        self.curr_image = self.curr_series.array[self.curr_index, :, :]
+        self.update_image()
 
     def load_template(self):
         if self.curr_series:
@@ -144,6 +142,7 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
             Centering().move(self.core.original,
                              self.core.template,
                              self.image_view)
+            self.update_image()
             self.statusBar().showMessage("Ready")
         else:
             self.statusBar().showMessage('No files')
@@ -154,24 +153,41 @@ class Gui(QtWidgets.QMainWindow, gui_template.Ui_MainWindow):
         else:
             self.statusBar().showMessage('No files')
 
+    def find_circle_start(self):
+        self.load_template()
+        self.find_circle = FindCircle()
+
     def log_filter(self):
-        self.core.original.log(1e1, 1e14)
-        self.image_view.setImage(self.core.original.arrays[0, :, :])
-        self.curr_index = 0
+        if self.curr_series:
+            self.statusBar().showMessage("Log...")
+            self.core.original.log()
+            self.update_image()
+            self.statusBar().showMessage("Ready")
+        else:
+            self.statusBar().showMessage('No files')
 
     def sobel_filter(self):
-        self.curr_image.soble()
-        self.image_view.setImage(self.curr_image.array)
+        if self.curr_series:
+            self.statusBar().showMessage("Soble...")
+            self.core.original.soble()
+            self.update_image()
+            self.statusBar().showMessage("Ready")
+        else:
+            self.statusBar().showMessage('No files')
 
     def canny_filter(self):
-        self.curr_image.canny()
-        self.image_view.setImage(self.curr_image.array)
+        if self.curr_series:
+            self.statusBar().showMessage("Canny...")
+            self.core.original.canny()
+            self.update_image()
+            self.statusBar().showMessage("Ready")
+        else:
+            self.statusBar().showMessage('No files')
 
-    def wiener_filter(self):
-        self.curr_image.wiener()
-        self.image_view.setImage(self.curr_image.array)
+    def update_image(self):
+        self.image_view.setImage(self.curr_image)
 
-    def update_(self):
+    def update_move_roi(self):
         if self.move_roi.checkState():
             move_speed = [0.0, 0.0]
 
